@@ -45,3 +45,58 @@ body,
   margin-left: auto;
   opacity: 0.5;
 }
+
+.build-panel {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(16, 24, 15, 0.88);
+  color: #e8e4d8;
+  pointer-events: auto;
+}
+
+.build-panel-title {
+  font-size: 13px;
+  opacity: 0.7;
+  margin-right: 4px;
+}
+
+.build-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #e8e4d8;
+  background: #2a3a28;
+  border: 1px solid #44563f;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.build-button:hover {
+  background: #36492f;
+}
+
+.build-button-active {
+  background: #4a6a3c;
+  border-color: #7fae62;
+}
+
+.build-size {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.build-hint {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-left: 6px;
+}

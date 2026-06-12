@@ -9,5 +9,8 @@
   "era.iron_age": "Iron Age",
   "building.town_hall": "Town Hall",
   "building.hut": "Hut",
-  "building.gatherer": "Gatherer's Camp"
+  "building.gatherer": "Gatherer's Camp",
+  "building.totem": "Totem",
+  "panel.build.title": "Build",
+  "panel.build.cancel_hint": "Esc / right click — cancel"
 }

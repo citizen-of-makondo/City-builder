@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { createScene } from '../render/scene';
-import { startGameLoop } from '../app/loop';
+import { setupGame } from '../app/renderSync';
 import { Hud } from './hud/Hud';
+import { BuildPanel } from './panels';
 
 export function App() {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -11,22 +11,20 @@ export function App() {
     if (!host) {
       return;
     }
-    let destroyed = false;
-    let destroyScene: (() => void) | null = null;
+    let cancelled = false;
+    let cleanup: (() => void) | null = null;
 
-    void createScene(host).then((scene) => {
-      if (destroyed) {
-        scene.destroy();
-        return;
+    void setupGame(host).then((c) => {
+      if (cancelled) {
+        c();
+      } else {
+        cleanup = c;
       }
-      destroyScene = () => scene.destroy();
     });
-    const stopLoop = startGameLoop();
 
     return () => {
-      destroyed = true;
-      stopLoop();
-      destroyScene?.();
+      cancelled = true;
+      cleanup?.();
     };
   }, []);
 
@@ -34,6 +32,7 @@ export function App() {
     <div className="game-root">
       <div ref={hostRef} className="canvas-host" />
       <Hud />
+      <BuildPanel />
     </div>
   );
 }

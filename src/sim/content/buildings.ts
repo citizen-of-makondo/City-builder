@@ -29,6 +29,14 @@ export const buildingDefs: Record<BuildingDefId, BuildingDef> = {
     cost: { gold: 80 },
     eraId: 'stone_age',
   },
+  totem: {
+    id: 'totem',
+    nameKey: 'building.totem',
+    category: 'decoration',
+    size: { w: 1, h: 1 },
+    cost: { gold: 20 },
+    eraId: 'stone_age',
+  },
 };
 
 export function getBuildingDef(id: BuildingDefId): BuildingDef | null {

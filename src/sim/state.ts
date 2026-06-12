@@ -2,6 +2,8 @@
  * Типы ядра симуляции. Этот модуль (и весь src/sim/) — чистый TS:
  * никаких импортов из render/, ui/, pixi, react, tauri.
  */
+import { generateTerrain } from './mapgen';
+import { balance } from './content/balance';
 
 export type BuildingId = string;
 export type BuildingDefId = string;
@@ -104,13 +106,7 @@ export function createInitialState(
   seed: number,
   mapSize: { width: number; height: number } = { width: 32, height: 32 },
 ): GameState {
-  const tiles: Tile[] = [];
-  for (let y = 0; y < mapSize.height; y++) {
-    for (let x = 0; x < mapSize.width; x++) {
-      // Фаза 1: процедурная генерация рельефа по seed. Пока — трава.
-      tiles.push({ x, y, terrain: 'grass', buildingId: null, road: false });
-    }
-  }
+  const tiles = generateTerrain(seed, mapSize.width, mapSize.height);
   return {
     schemaVersion: SCHEMA_VERSION,
     seed,
@@ -120,7 +116,7 @@ export function createInitialState(
     tiles,
     buildings: {},
     nextBuildingId: 1,
-    resources: createEmptyResources(),
+    resources: { ...createEmptyResources(), ...balance.startingResources },
     eraId: 'stone_age',
   };
 }

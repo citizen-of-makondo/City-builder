@@ -9,5 +9,8 @@
   "era.iron_age": "Железный век",
   "building.town_hall": "Ратуша",
   "building.hut": "Хижина",
-  "building.gatherer": "Лагерь собирателей"
+  "building.gatherer": "Лагерь собирателей",
+  "building.totem": "Тотем",
+  "panel.build.title": "Строить",
+  "panel.build.cancel_hint": "Esc / ПКМ — отмена"
 }

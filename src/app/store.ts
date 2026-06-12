@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameState } from '../sim/state';
+import type { BuildingDefId, GameState } from '../sim/state';
 import { createInitialState } from '../sim/state';
 import type { Command } from '../sim/commands';
 import { applyCommand } from '../sim/commands';
@@ -23,4 +23,15 @@ export const useGameStore = create<GameStore>((set) => ({
     }),
   advanceTick: () => set((s) => ({ state: tick(s.state).state })),
   replaceState: (state) => set({ state }),
+}));
+
+interface UiStore {
+  /** выбранный тип здания в режиме строительства, null — режим выключен */
+  buildDefId: BuildingDefId | null;
+  setBuildDefId(id: BuildingDefId | null): void;
+}
+
+export const useUiStore = create<UiStore>((set) => ({
+  buildDefId: null,
+  setBuildDefId: (buildDefId) => set({ buildDefId }),
 }));
