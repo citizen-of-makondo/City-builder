@@ -1,0 +1,13 @@
+{
+  "app.title": "City Builder",
+  "hud.era": "Era",
+  "hud.gold": "Gold",
+  "hud.supplies": "Supplies",
+  "hud.population": "Population",
+  "era.stone_age": "Stone Age",
+  "era.bronze_age": "Bronze Age",
+  "era.iron_age": "Iron Age",
+  "building.town_hall": "Town Hall",
+  "building.hut": "Hut",
+  "building.gatherer": "Gatherer's Camp"
+}

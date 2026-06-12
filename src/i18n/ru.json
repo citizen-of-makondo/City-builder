@@ -1,0 +1,13 @@
+{
+  "app.title": "Городской симулятор",
+  "hud.era": "Эпоха",
+  "hud.gold": "Золото",
+  "hud.supplies": "Припасы",
+  "hud.population": "Население",
+  "era.stone_age": "Каменный век",
+  "era.bronze_age": "Бронзовый век",
+  "era.iron_age": "Железный век",
+  "building.town_hall": "Ратуша",
+  "building.hut": "Хижина",
+  "building.gatherer": "Лагерь собирателей"
+}

@@ -1,0 +1,47 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-family: system-ui, sans-serif;
+  background: #10180f;
+}
+
+.game-root {
+  position: relative;
+  height: 100%;
+}
+
+/* Pixi-canvas занимает весь экран */
+.canvas-host {
+  position: absolute;
+  inset: 0;
+}
+
+/* React-HUD поверх canvas; сам слой не перехватывает клики по карте */
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #e8e4d8;
+}
+
+.hud-bar {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  padding: 8px 16px;
+  background: rgba(16, 24, 15, 0.85);
+  pointer-events: auto;
+}
+
+.hud-item {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.hud-tick {
+  margin-left: auto;
+  opacity: 0.5;
+}
