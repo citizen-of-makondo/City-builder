@@ -3,14 +3,9 @@ import type { BuildingDefId, BuildingId, GameState } from '../sim/state';
 import { tileAt } from '../sim/state';
 import { getBuildingDef } from '../sim/content/buildings';
 import type { Camera } from './camera';
+import type { RoadMode } from '../app/store';
 import { gridToScreen, screenToGrid } from './iso';
 import { drawFootprint } from './buildings';
-
-/**
- * Ввод по карте: клик размещает здание в режиме строительства,
- * drag по зданию перемещает его, drag по земле двигает камеру,
- * колесо — зум к курсору, Esc/ПКМ — отмена режима строительства.
- */
 
 export interface InputDeps {
   canvas: HTMLCanvasElement;
@@ -18,11 +13,14 @@ export interface InputDeps {
   ghost: Graphics;
   getState(): GameState;
   getBuildDefId(): BuildingDefId | null;
+  getRoadMode(): RoadMode;
   cancelBuild(): void;
   place(defId: BuildingDefId, x: number, y: number): void;
   moveBuilding(buildingId: BuildingId, x: number, y: number): void;
   canPlace(defId: BuildingDefId, x: number, y: number): boolean;
   canMove(buildingId: BuildingId, x: number, y: number): boolean;
+  placeRoad(x: number, y: number): void;
+  removeRoad(x: number, y: number): void;
 }
 
 const CLICK_DRAG_THRESHOLD = 6;
@@ -30,7 +28,7 @@ const CLICK_DRAG_THRESHOLD = 6;
 export function attachInput(deps: InputDeps): () => void {
   const { canvas, camera, ghost } = deps;
 
-  type Mode = 'idle' | 'pan' | 'drag';
+  type Mode = 'idle' | 'pan' | 'drag' | 'road';
   let mode: Mode = 'idle';
   let lastX = 0;
   let lastY = 0;
@@ -41,6 +39,8 @@ export function attachInput(deps: InputDeps): () => void {
   let dragId: BuildingId | null = null;
   let dragDx = 0;
   let dragDy = 0;
+  let roadAction: 'place' | 'erase' = 'place';
+  const visitedRoadTiles = new Set<string>();
 
   const gridUnder = (sx: number, sy: number) => {
     const w = camera.toWorld(sx, sy);
@@ -93,15 +93,25 @@ export function attachInput(deps: InputDeps): () => void {
     hideGhost();
   }
 
+  function handleRoadTile(sx: number, sy: number): void {
+    const cell = gridUnder(sx, sy);
+    const key = `${cell.col},${cell.row}`;
+    if (visitedRoadTiles.has(key)) return;
+    visitedRoadTiles.add(key);
+    if (roadAction === 'place') {
+      deps.placeRoad(cell.col, cell.row);
+    } else {
+      deps.removeRoad(cell.col, cell.row);
+    }
+  }
+
   function onPointerDown(e: PointerEvent): void {
     if (e.button === 2) {
       deps.cancelBuild();
       refreshGhost(e.offsetX, e.offsetY);
       return;
     }
-    if (e.button !== 0) {
-      return;
-    }
+    if (e.button !== 0) return;
     canvas.setPointerCapture(e.pointerId);
     lastX = e.offsetX;
     lastY = e.offsetY;
@@ -110,6 +120,15 @@ export function attachInput(deps: InputDeps): () => void {
     vy = 0;
     lastT = e.timeStamp;
     camera.stopInertia();
+
+    const rm = deps.getRoadMode();
+    if (rm !== null) {
+      mode = 'road';
+      roadAction = rm;
+      visitedRoadTiles.clear();
+      handleRoadTile(e.offsetX, e.offsetY);
+      return;
+    }
 
     if (!deps.getBuildDefId()) {
       const cell = gridUnder(e.offsetX, e.offsetY);
@@ -132,18 +151,17 @@ export function attachInput(deps: InputDeps): () => void {
   function onPointerMove(e: PointerEvent): void {
     const dx = e.offsetX - lastX;
     const dy = e.offsetY - lastY;
-    if (mode === 'pan') {
+    if (mode === 'road') {
+      handleRoadTile(e.offsetX, e.offsetY);
+    } else if (mode === 'pan') {
       camera.panBy(dx, dy);
       const dt = Math.max(1, e.timeStamp - lastT);
-      // скорость в px/кадр при 60 fps — для инерции
       vx = (dx / dt) * 16.7;
       vy = (dy / dt) * 16.7;
       lastT = e.timeStamp;
       moved += Math.abs(dx) + Math.abs(dy);
     } else {
-      if (mode === 'drag') {
-        moved += Math.abs(dx) + Math.abs(dy);
-      }
+      if (mode === 'drag') moved += Math.abs(dx) + Math.abs(dy);
       refreshGhost(e.offsetX, e.offsetY);
     }
     lastX = e.offsetX;
@@ -151,7 +169,9 @@ export function attachInput(deps: InputDeps): () => void {
   }
 
   function onPointerUp(e: PointerEvent): void {
-    if (mode === 'pan') {
+    if (mode === 'road') {
+      visitedRoadTiles.clear();
+    } else if (mode === 'pan') {
       if (moved < CLICK_DRAG_THRESHOLD) {
         const defId = deps.getBuildDefId();
         if (defId) {
@@ -165,9 +185,7 @@ export function attachInput(deps: InputDeps): () => void {
       const cell = gridUnder(e.offsetX, e.offsetY);
       const tx = cell.col - dragDx;
       const ty = cell.row - dragDy;
-      if (deps.canMove(dragId, tx, ty)) {
-        deps.moveBuilding(dragId, tx, ty);
-      }
+      if (deps.canMove(dragId, tx, ty)) deps.moveBuilding(dragId, tx, ty);
       dragId = null;
     }
     mode = 'idle';
@@ -177,6 +195,7 @@ export function attachInput(deps: InputDeps): () => void {
   function onPointerLeave(): void {
     mode = 'idle';
     dragId = null;
+    visitedRoadTiles.clear();
     hideGhost();
   }
 

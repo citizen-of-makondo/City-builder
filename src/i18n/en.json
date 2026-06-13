@@ -12,5 +12,9 @@
   "building.gatherer": "Gatherer's Camp",
   "building.totem": "Totem",
   "panel.build.title": "Build",
-  "panel.build.cancel_hint": "Esc / right click — cancel"
+  "panel.build.cancel_hint": "Esc / right click — cancel",
+  "panel.road.place": "Draw road (drag to paint)",
+  "panel.road.place_short": "Road",
+  "panel.road.erase": "Erase road (drag to erase)",
+  "panel.road.erase_short": "Erase"
 }

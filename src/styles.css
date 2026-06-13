@@ -100,3 +100,14 @@ body,
   opacity: 0.6;
   margin-left: 6px;
 }
+
+.build-sep {
+  width: 1px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 4px;
+}
+
+.road-button {
+  min-width: 52px;
+}

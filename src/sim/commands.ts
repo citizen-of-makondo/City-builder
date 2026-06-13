@@ -9,6 +9,7 @@ import type {
 } from './state';
 import { tileAt } from './state';
 import { getBuildingDef } from './content/buildings';
+import { updateConnectivity } from './systems/roads';
 
 /**
  * Любое изменение GameState — только через команды с валидацией здесь,
@@ -18,6 +19,8 @@ export type Command =
   | { type: 'PlaceBuilding'; defId: BuildingDefId; x: number; y: number }
   | { type: 'MoveBuilding'; buildingId: BuildingId; x: number; y: number }
   | { type: 'RemoveBuilding'; buildingId: BuildingId }
+  | { type: 'PlaceRoad'; x: number; y: number }
+  | { type: 'RemoveRoad'; x: number; y: number }
   | { type: 'CollectProduction'; buildingId: BuildingId }
   | { type: 'EnactEdict'; edictId: string };
 
@@ -34,7 +37,6 @@ export type CommandError =
 
 const BUILDABLE_TERRAIN: ReadonlySet<TerrainType> = new Set(['grass', 'fertile']);
 
-/** Проверка площадки w×h: границы, рельеф, занятость (ignoreBuildingId — для перемещения). */
 function validateFootprint(
   state: GameState,
   def: BuildingDef,
@@ -68,13 +70,10 @@ function chargeCost(resources: Resources, cost: BuildingDef['cost']): Resources 
   const gold = resources.gold - (cost.gold ?? 0);
   const supplies = resources.supplies - (cost.supplies ?? 0);
   const influence = resources.influence - (cost.influence ?? 0);
-  if (gold < 0 || supplies < 0 || influence < 0) {
-    return null;
-  }
+  if (gold < 0 || supplies < 0 || influence < 0) return null;
   return { ...resources, gold, supplies, influence };
 }
 
-/** Dry-run валидация размещения — для подсветки призрака в UI. */
 export function validatePlaceBuilding(
   state: GameState,
   defId: BuildingDefId,
@@ -82,34 +81,23 @@ export function validatePlaceBuilding(
   y: number,
 ): CommandError | null {
   const def = getBuildingDef(defId);
-  if (!def) {
-    return 'unknown_def';
-  }
-  const footprintError = validateFootprint(state, def, x, y);
-  if (footprintError) {
-    return footprintError;
-  }
-  if (!chargeCost(state.resources, def.cost)) {
-    return 'not_enough_resources';
-  }
+  if (!def) return 'unknown_def';
+  const err = validateFootprint(state, def, x, y);
+  if (err) return err;
+  if (!chargeCost(state.resources, def.cost)) return 'not_enough_resources';
   return null;
 }
 
-/** Dry-run валидация перемещения построенного здания. */
 export function validateMoveBuilding(
   state: GameState,
   buildingId: BuildingId,
   x: number,
   y: number,
 ): CommandError | null {
-  const building = state.buildings[buildingId];
-  if (!building) {
-    return 'unknown_building';
-  }
-  const def = getBuildingDef(building.defId);
-  if (!def) {
-    return 'unknown_def';
-  }
+  const b = state.buildings[buildingId];
+  if (!b) return 'unknown_building';
+  const def = getBuildingDef(b.defId);
+  if (!def) return 'unknown_def';
   return validateFootprint(state, def, x, y, buildingId);
 }
 
@@ -126,9 +114,7 @@ function setFootprint(
     for (let dx = 0; dx < def.size.w; dx++) {
       const i = (y + dy) * mapWidth + (x + dx);
       const tile = next[i];
-      if (tile) {
-        next[i] = { ...tile, buildingId };
-      }
+      if (tile) next[i] = { ...tile, buildingId };
     }
   }
   return next;
@@ -138,84 +124,91 @@ export function applyCommand(state: GameState, command: Command): CommandResult 
   switch (command.type) {
     case 'PlaceBuilding': {
       const error = validatePlaceBuilding(state, command.defId, command.x, command.y);
-      if (error) {
-        return { ok: false, error };
-      }
+      if (error) return { ok: false, error };
       const def = getBuildingDef(command.defId) as BuildingDef;
       const resources = chargeCost(state.resources, def.cost) as Resources;
       const id: BuildingId = `b${state.nextBuildingId}`;
-      return {
-        ok: true,
-        state: {
-          ...state,
-          resources,
-          nextBuildingId: state.nextBuildingId + 1,
-          buildings: {
-            ...state.buildings,
-            [id]: {
-              id,
-              defId: def.id,
-              x: command.x,
-              y: command.y,
-              // связность с ратушей — фаза 2
-              connected: true,
-              productionStartedAtTick: null,
-            },
+      const next: GameState = {
+        ...state,
+        resources,
+        nextBuildingId: state.nextBuildingId + 1,
+        buildings: {
+          ...state.buildings,
+          [id]: {
+            id,
+            defId: def.id,
+            x: command.x,
+            y: command.y,
+            connected: def.id === 'town_hall',
+            productionStartedAtTick: null,
           },
-          tiles: setFootprint(state.tiles, state.mapSize.width, def, command.x, command.y, id),
         },
+        tiles: setFootprint(state.tiles, state.mapSize.width, def, command.x, command.y, id),
       };
+      return { ok: true, state: updateConnectivity(next) };
     }
+
     case 'MoveBuilding': {
       const error = validateMoveBuilding(state, command.buildingId, command.x, command.y);
-      if (error) {
-        return { ok: false, error };
-      }
-      const building = state.buildings[command.buildingId];
-      if (!building) {
-        return { ok: false, error: 'unknown_building' };
-      }
-      const def = getBuildingDef(building.defId) as BuildingDef;
-      let tiles = setFootprint(state.tiles, state.mapSize.width, def, building.x, building.y, null);
-      tiles = setFootprint(tiles, state.mapSize.width, def, command.x, command.y, building.id);
-      return {
-        ok: true,
-        state: {
-          ...state,
-          tiles,
-          buildings: {
-            ...state.buildings,
-            [building.id]: { ...building, x: command.x, y: command.y },
-          },
+      if (error) return { ok: false, error };
+      const b = state.buildings[command.buildingId]!;
+      const def = getBuildingDef(b.defId) as BuildingDef;
+      let tiles = setFootprint(state.tiles, state.mapSize.width, def, b.x, b.y, null);
+      tiles = setFootprint(tiles, state.mapSize.width, def, command.x, command.y, b.id);
+      const next: GameState = {
+        ...state,
+        tiles,
+        buildings: {
+          ...state.buildings,
+          [b.id]: { ...b, x: command.x, y: command.y },
         },
       };
+      return { ok: true, state: updateConnectivity(next) };
     }
+
     case 'RemoveBuilding': {
-      const building = state.buildings[command.buildingId];
-      if (!building) {
-        return { ok: false, error: 'unknown_building' };
-      }
-      const def = getBuildingDef(building.defId);
-      if (!def) {
-        return { ok: false, error: 'unknown_def' };
-      }
+      const b = state.buildings[command.buildingId];
+      if (!b) return { ok: false, error: 'unknown_building' };
+      const def = getBuildingDef(b.defId);
+      if (!def) return { ok: false, error: 'unknown_def' };
       const buildings = { ...state.buildings };
-      delete buildings[building.id];
-      return {
-        ok: true,
-        state: {
-          ...state,
-          buildings,
-          tiles: setFootprint(state.tiles, state.mapSize.width, def, building.x, building.y, null),
-        },
+      delete buildings[b.id];
+      const next: GameState = {
+        ...state,
+        buildings,
+        tiles: setFootprint(state.tiles, state.mapSize.width, def, b.x, b.y, null),
       };
+      return { ok: true, state: updateConnectivity(next) };
     }
+
+    case 'PlaceRoad': {
+      const tile = tileAt(state, command.x, command.y);
+      if (!tile) return { ok: false, error: 'out_of_bounds' };
+      if (tile.buildingId !== null) return { ok: false, error: 'tile_occupied' };
+      if (!BUILDABLE_TERRAIN.has(tile.terrain)) return { ok: false, error: 'terrain_blocked' };
+      if (tile.road) return { ok: true, state }; // уже дорога — no-op
+      const i = command.y * state.mapSize.width + command.x;
+      const tiles = state.tiles.slice();
+      tiles[i] = { ...tile, road: true };
+      return { ok: true, state: updateConnectivity({ ...state, tiles }) };
+    }
+
+    case 'RemoveRoad': {
+      const tile = tileAt(state, command.x, command.y);
+      if (!tile) return { ok: false, error: 'out_of_bounds' };
+      if (!tile.road) return { ok: true, state }; // не дорога — no-op
+      const i = command.y * state.mapSize.width + command.x;
+      const tiles = state.tiles.slice();
+      tiles[i] = { ...tile, road: false };
+      return { ok: true, state: updateConnectivity({ ...state, tiles }) };
+    }
+
     case 'CollectProduction':
-      // Фаза 3: сбор готового производства.
       return { ok: false, error: 'not_implemented' };
+
     case 'EnactEdict':
-      // Фаза 5: эдикты и фракции.
       return { ok: false, error: 'not_implemented' };
+
     default: {
       const exhaustive: never = command;
       return exhaustive;

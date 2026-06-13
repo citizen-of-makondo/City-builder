@@ -12,5 +12,9 @@
   "building.gatherer": "Лагерь собирателей",
   "building.totem": "Тотем",
   "panel.build.title": "Строить",
-  "panel.build.cancel_hint": "Esc / ПКМ — отмена"
+  "panel.build.cancel_hint": "Esc / ПКМ — отмена",
+  "panel.road.place": "Рисовать дороги (тяни для закраски)",
+  "panel.road.place_short": "Дорога",
+  "panel.road.erase": "Стереть дороги",
+  "panel.road.erase_short": "Стереть"
 }
